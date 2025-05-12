@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    stages{
+        stage('Get code'){
+            steps{
+                echo 'Getting GitHub code'
+                git 'https://github.com/frankt99/helloworld.git'
+                echo 'Mostrando ruta y contenido del Workspace'
+                echo WORKSPACE
+                bat 'dir /b'
+            }
+        }
+        stage('Build'){
+            steps{
+                echo 'Etapa Build'
+            }
+        }
+        stage('Parallels'){
+            parallel {
+                stage('Unit'){
+                    steps{
+                        echo 'Ejecutando pruebas'
+                        bat '''
+                        python -m pytest --junitxml=result-unit.xml test\\unit
+                        '''
+                    }
+                }
+                stage('Service'){
+                    steps{
+                        echo 'Declarando variables de entorno'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            set FLASK_APP=app\\api.py
+                            set FLASK_ENV=development
+                            '''
+                        echo 'Levantando Flask y Wiremock'
+                        bat '''
+                            start python -m flask run
+                            echo 'probando con un curl que funciona'
+                            curl localhost:5000/calc/add/2/33
+                            start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 -verbose --root-dir C:\\wiremock
+                            echo 'probando con un curl que funciona'
+                            curl localhost:9090/calc/sqrt/64
+                            '''
+                    }    
+                }
+            }
+        }
+        stage("Mostando resultados"){
+            steps{
+                junit 'result*.xml'
+            }
+        }
+    }
+}
