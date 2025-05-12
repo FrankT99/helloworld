@@ -1,0 +1,75 @@
+pipeline {
+    agent none
+    stages{
+        stage('Get code'){
+            agent{ label 'nodo_principal'}
+            steps{
+                bat 'whoami'
+                bat 'hostname'
+                echo 'Getting GitHub code'
+                git 'https://github.com/frankt99/helloworld.git'
+                echo 'Mostrando ruta y contenido del Workspace'
+                echo WORKSPACE
+                bat 'dir /b'
+                stash includes: '**', name: 'mirepo'  
+            }
+        }
+        stage('Build'){
+            agent{ label 'nodo_secundario'}
+            steps{
+                bat 'whoami'
+                bat 'hostname'
+                unstash 'mirepo'
+                bat 'dir /b'
+                echo 'Etapa Build'
+            }
+        }
+        stage('Parallels'){
+            parallel {
+                stage('Unit'){
+                    agent{ label 'nodo_secundario' }
+                    steps{
+                        bat 'whoami'
+                        bat 'hostname'
+                        bat 'dir /b'
+                        echo 'Ejecutando pruebas'
+                        bat '''
+                        set PYTHONPATH=%WORKSPACE%
+                        C:\\Python313\\python.exe -m pytest --junitxml=result-unit.xml test\\unit
+                        '''
+                        stash includes: 'result-unit.xml', name: 'miresultado'
+                    }
+                }
+                stage('Service'){
+                    agent{ label 'nodo_principal'}
+                    steps{
+                        bat 'whoami'
+                        bat 'hostname'
+                        echo 'Declarando variables de entorno'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            set FLASK_APP=app\\api.py
+                            set FLASK_ENV=development
+                            '''
+                        echo 'Levantando Flask y Wiremock'
+                        bat '''
+                            start python -m flask run
+                            echo 'probando con un curl que funciona'
+                            curl localhost:5000/calc/add/2/33
+                            start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 -verbose --root-dir C:\\wiremock
+                            echo 'probando con un curl que funciona'
+                            curl localhost:9090/calc/sqrt/64
+                            '''
+                    }    
+                }
+            }
+        }
+        stage("Mostando resultados"){
+            agent{ label 'nodo_principal'}
+            steps{
+                unstash 'miresultado'
+                junit 'result*.xml'
+            }
+        }
+    }
+}
