@@ -1,55 +1,62 @@
 pipeline {
     agent any
-    stages{
-        stage('Get code'){
-            steps{
+
+     stages {
+        stage('Get Code') {
+            steps {
+                echo 'Removing old files from workspace'
+                deleteDir()
                 echo 'Getting GitHub code'
                 git 'https://github.com/frankt99/helloworld.git'
-                echo 'Mostrando ruta y contenido del Workspace'
+                echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
             }
         }
-        stage('Build'){
-            steps{
-                echo 'Etapa Build'
-            }
+    
+        stage('Build') {
+           steps {
+              echo 'Build stage'
+           }
         }
-        stage('Parallels'){
+        
+        stage('Tests') {
             parallel {
-                stage('Unit'){
-                    steps{
-                        echo 'Ejecutando pruebas'
-                        bat '''
-                        python -m pytest --junitxml=result-unit.xml test\\unit
-                        '''
+                stage('Unit') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    echo 'Performing Unit test'
+                                    bat '''
+                                        set PYTHONPATH=.
+                                        echo 'Generating unit test result'
+                                        python -m pytest --junitxml=result-unit.xml test\\unit
+                                    '''
+                                }
+                            }
+                }
+                        
+                stage('Rest') {
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            echo 'Performing Rest test'
+                            bat '''
+                                set FLASK_APP=app\\api.py
+                                start python -m flask run
+                                start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 --verbose --root-dir test\\wiremock
+                                ping -n 5 127.0.0.1
+                                echo 'Generating rest test result'
+                                python -m pytest --junitxml=result-rest.xml test\\rest
+                            '''
+                        }
                     }
-                }
-                stage('Service'){
-                    steps{
-                        echo 'Declarando variables de entorno'
-                        bat '''
-                            set PYTHONPATH=%WORKSPACE%
-                            set FLASK_APP=app\\api.py
-                            set FLASK_ENV=development
-                            '''
-                        echo 'Levantando Flask y Wiremock'
-                        bat '''
-                            start python -m flask run
-                            echo 'probando con un curl que funciona'
-                            curl localhost:5000/calc/add/2/33
-                            start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 -verbose --root-dir C:\\wiremock
-                            echo 'probando con un curl que funciona'
-                            curl localhost:9090/calc/sqrt/64
-                            '''
-                    }    
-                }
+                }        
             }
         }
-        stage("Mostando resultados"){
-            steps{
+        
+        stage ('Results') {
+            steps {
                 junit 'result*.xml'
             }
         }
-    }
+    }            
 }
