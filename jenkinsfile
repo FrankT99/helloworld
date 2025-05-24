@@ -43,7 +43,7 @@ pipeline {
                                 set FLASK_APP=app\\api.py
                                 start python -m flask run
                                 start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 --verbose --root-dir test\\wiremock
-                                ping -n 5 127.0.0.1
+                                ping -n 5 127.0.0.1 > nul
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
                             '''
