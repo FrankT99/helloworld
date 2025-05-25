@@ -57,11 +57,10 @@ pipeline {
                                 start python -m flask run
                                 start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 --verbose --root-dir test\\wiremock
                                 echo 'Waiting for flask and wiremock to be up'
-                                for /L %%i in (1,1,5) do (
-                                    echo 'iteracion ' %%i
-                                        (netstat -an | find ":5000" > nul) && (netstat -an | find ":9090" > nul) && goto :continuar
-                                        ping 127.0.0.1 -n 2 > nul
-                                        )
+                                (for /L %%i in (1,1,5) do (
+                                    (netstat -an | find ":5000") && (netstat -an | find ":9090") && goto :continuar
+                                    ping 127.0.0.1 -n 2
+                                )) > nul
                                 :continuar
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
