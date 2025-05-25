@@ -60,7 +60,7 @@ pipeline {
                                 for /L %%i in (1,1,5) do (
                                     echo 'iteracion ' %%i
                                         (netstat -an | find ":5000" > nul) && (netstat -an | find ":9090" > nul) && goto :continuar
-                                        timeout /t 1 > nul
+                                        ping 127.0.0.1 -n 2 > nul
                                         )
                                 :continuar
                                 echo 'Generating rest test result'
