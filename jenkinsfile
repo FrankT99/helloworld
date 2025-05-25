@@ -2,12 +2,10 @@ pipeline {
     agent any
 
      stages {
-        stage('Get Code') {
+        stage('Setting up the workspace') {
             steps {
                 echo 'Removing old files from workspace'
                 deleteDir()
-                echo 'Getting GitHub code'
-                git 'https://github.com/frankt99/helloworld.git'
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
