@@ -1,9 +1,13 @@
 pipeline {
     agent any
+    options{
+        skipDefaultCheckout()
+    }
 
      stages {
         stage('Get Code') {
             steps {
+                bat 'whoami & hostname'
                 echo 'Removing old files from workspace'
                 deleteDir()
                 echo 'Getting GitHub code'
@@ -11,33 +15,42 @@ pipeline {
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
+                stash name:'code', includes:'**'
             }
         }
     
         stage('Build') {
            steps {
-              echo 'Build stage'
+            bat 'whoami & hostname'
+            echo 'Build stage'
            }
         }
         
         stage('Tests') {
             parallel {
                 stage('Unit') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    echo 'Performing Unit test'
-                                    bat '''
-                                        set PYTHONPATH=.
-                                        echo 'Generating unit test result'
-                                        python -m pytest --junitxml=result-unit.xml test\\unit
-                                    '''
-                                }
-                            }
+                    agent {label 'nodo_secundario'}
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            unstash name:'code'
+                            bat 'whoami & hostname'
+                            echo 'Performing Unit test'
+                            bat '''
+                                set PYTHONPATH=.
+                                echo 'Generating unit test result'
+                                python -m pytest --junitxml=result-unit.xml test\\unit
+                            '''
+                            stash name:'unit-res', includes:'result-unit.xml'
+                        }
+                    }
                 }
                         
                 stage('Rest') {
+                    agent {label 'nodo_principal'}
                     steps {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            unstash name:'code'
+                            bat 'whoami & hostname'
                             echo 'Performing Rest test'
                             bat '''
                                 set FLASK_APP=app\\api.py
@@ -47,6 +60,7 @@ pipeline {
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
                             '''
+                            stash name:'rest-res', includes:'result-rest.xml'
                         }
                     }
                 }        
@@ -55,6 +69,9 @@ pipeline {
         
         stage ('Results') {
             steps {
+                bat 'whoami & hostname'
+                unstash name:'unit-res'
+                unstash name:'rest-res'
                 junit 'result*.xml'
             }
         }
