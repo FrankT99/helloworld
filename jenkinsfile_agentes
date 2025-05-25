@@ -11,7 +11,7 @@ pipeline {
                 echo 'Removing old files from workspace'
                 deleteDir()
                 echo 'Getting GitHub code'
-                git 'https://github.com/frankt99/helloworld.git'
+                git branch: 'feature_fix_racecond', url: 'https://github.com/frankt99/helloworld.git'
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
@@ -56,7 +56,12 @@ pipeline {
                                 set FLASK_APP=app\\api.py
                                 start python -m flask run
                                 start java -jar C:\\wiremock\\wiremock-standalone-3.13.0.jar --port 9090 --verbose --root-dir test\\wiremock
-                                ping -n 5 127.0.0.1 > nul
+                                echo 'Waiting for flask and wiremock to be up'
+                                for /L %%i in (1,1,10) do (
+                                    echo 'iteracion ' %%i
+                                    (netstat -an | find ":5000" > nul) && (netstat -an | find ":9090" > nul) && (exit /b)
+                                    timeout /t 1 > nul
+                                )
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
                             '''
