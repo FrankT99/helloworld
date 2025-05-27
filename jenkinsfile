@@ -7,7 +7,7 @@ pipeline {
                 echo 'Removing old files from workspace'
                 deleteDir()
                 echo 'Getting GitHub code'
-                //git 'https://github.com/frankt99/helloworld.git'
+                git 'https://github.com/frankt99/helloworld.git'
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
