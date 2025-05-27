@@ -13,12 +13,6 @@ pipeline {
                 bat 'dir /b'
             }
         }
-    
-        stage('Build') {
-           steps {
-              echo 'Build stage'
-           }
-        }
         
         stage('Tests') {
             parallel {
