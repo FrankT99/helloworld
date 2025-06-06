@@ -22,8 +22,10 @@ pipeline {
                                     echo 'Performing Unit test'
                                     bat '''
                                         set PYTHONPATH=.
-                                        echo 'Generating unit test result'
-                                        python -m pytest --junitxml=result-unit.xml test\\unit
+                                        echo 'Performing unit tests and its result from line and conditional coverage'
+                                        coverage run --branch --source=app --omit=__init__.py,app\\api.py -m pytest --junitxml=result-unit.xml test\\unit
+                                        echo 'Generating coverage XML report'
+                                        coverage xml
                                     '''
                                 }
                             }
@@ -71,10 +73,6 @@ pipeline {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     echo 'Performing Static code test'
-                    bat '''
-                        coverage run --source=app --omit=app\\_init_.py,app\\api.py -m pytest test\\unit
-                        coverage xml
-                    '''
                     cobertura coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100,80,90', lineCoverageTargets: '100,90,85'
 
                 }
