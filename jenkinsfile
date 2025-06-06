@@ -73,7 +73,7 @@ pipeline {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     echo 'Performing Static code test'
-                    cobertura onlyStable: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100,80,90', lineCoverageTargets: '100,90,85'
+                    cobertura onlyStable: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100,90,80', lineCoverageTargets: '100,95,85'
 
                 }
             }
