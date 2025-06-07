@@ -27,6 +27,7 @@ pipeline {
                                         echo 'Generating coverage XML report'
                                         coverage xml
                                     '''
+                                    junit 'result-unit.xml'
                                 }
                             }
                 }
@@ -43,6 +44,7 @@ pipeline {
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
                             '''
+                            junit 'result-rest.xml'
                         }
                     }
                 }
