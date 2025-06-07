@@ -4,10 +4,10 @@ pipeline {
      stages {
         stage('Get Code') {
             steps {
-                echo 'Removing old files from workspace'
+                echo 'Removing old files from workspace previous builds'
                 deleteDir()
                 echo 'Getting GitHub code'
-                git branch: 'CP1.2', url: 'https://github.com/frankt99/helloworld.git'
+                git url: 'https://github.com/frankt99/helloworld.git'
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
@@ -64,7 +64,7 @@ pipeline {
         stage('Bandit') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    echo 'Performing Static code test'
+                    echo 'Performing Security tests'
                     bat 'bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}:{severity}:{test_id}:{msg}"'
                     recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates : [[threshold: 2, type: 'TOTAL', unstable: true], [threshold: 4, type: 'TOTAL', unstable: false]]
                 }
@@ -74,7 +74,7 @@ pipeline {
         stage('Coverage') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    echo 'Performing Static code test'
+                    echo 'Performing Cobertura report'
                     cobertura onlyStable: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '90, 80, 80', lineCoverageTargets: '95, 85, 95'
                 }
             }
@@ -82,6 +82,7 @@ pipeline {
 
         stage('Jmeter') {
             steps {
+                echo 'Performing Performance test'
                 bat 'jmeter -n -t test\\jmeter\\test-plan-CP1.2.jmx -f -l flask.jtl'
                 perfReport sourceDataFiles: 'flask.jtl'
             }
