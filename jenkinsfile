@@ -7,7 +7,7 @@ pipeline {
                 echo 'Removing old files from workspace previous builds'
                 deleteDir()
                 echo 'Getting GitHub code'
-                git url: 'https://github.com/frankt99/helloworld.git'
+                git branch: 'feature_fix_coverage', url: 'https://github.com/frankt99/helloworld.git'
                 echo 'Path and workspace content'
                 echo WORKSPACE
                 bat 'dir /b'
