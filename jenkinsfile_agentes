@@ -1,56 +1,49 @@
 pipeline {
     agent any
-    options{
-        skipDefaultCheckout()
-    }
-
-     stages {
+    options{skipDefaultCheckout()}
+    stages {
         stage('Get Code') {
             steps {
+                echo WORKSPACE
                 bat 'whoami & hostname'
                 echo 'Removing old files from workspace'
                 deleteDir()
                 echo 'Getting GitHub code'
                 git 'https://github.com/frankt99/helloworld.git'
-                echo 'Path and workspace content'
-                echo WORKSPACE
+                echo 'Workspace content'
                 bat 'dir /b'
                 stash name:'code', includes:'**'
             }
-        }
-    
-        stage('Build') {
-           steps {
-            bat 'whoami & hostname'
-            echo 'Build stage'
-           }
         }
         
         stage('Tests') {
             parallel {
                 stage('Unit') {
-                    agent {label 'nodo_secundario'}
+                    agent {label 'nodo_principal'}
                     steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            unstash name:'code'
-                            bat 'whoami & hostname'
+                        echo WORKSPACE
+                        bat 'whoami & hostname'
+                        unstash name:'code'
+                        bat '''
                             echo 'Performing Unit test'
-                            bat '''
-                                set PYTHONPATH=.
-                                echo 'Generating unit test result'
-                                python -m pytest --junitxml=result-unit.xml test\\unit
-                            '''
-                            stash name:'unit-res', includes:'result-unit.xml'
-                        }
+                            set PYTHONPATH=.
+                            echo 'Performing unit tests and its result from line and conditional coverage'
+                            coverage run --branch --source=app --omit=__init__.py,app\\api.py -m pytest --junitxml=result-unit.xml test\\unit
+                            echo 'Generating coverage XML report'
+                            coverage xml
+                        '''
+                        junit 'result-unit.xml'
+                        stash name:'coverage-result', includes:'coverage.xml'
                     }
                 }
                         
                 stage('Rest') {
-                    agent {label 'nodo_principal'}
+                    agent {label 'nodo_segundo'}
                     steps {
+                        echo WORKSPACE
+                        bat 'whoami & hostname'
+                        unstash name:'code'
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            unstash name:'code'
-                            bat 'whoami & hostname'
                             echo 'Performing Rest test'
                             bat '''
                                 set FLASK_APP=app\\api.py
@@ -60,19 +53,60 @@ pipeline {
                                 echo 'Generating rest test result'
                                 python -m pytest --junitxml=result-rest.xml test\\rest
                             '''
-                            stash name:'rest-res', includes:'result-rest.xml'
+                            junit 'result-rest.xml'
                         }
                     }
                 }        
             }
         }
-        
-        stage ('Results') {
+
+        stage('Flake8') {
             steps {
+                echo WORKSPACE
                 bat 'whoami & hostname'
-                unstash name:'unit-res'
-                unstash name:'rest-res'
-                junit 'result*.xml'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    unstash name:'code'
+                    echo 'Performing Static code test'
+                    bat 'flake8 --format=pylint --exit-zero app > flake8.out'
+                    recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], qualityGates : [[threshold: 8, type: 'TOTAL', unstable: true], [threshold: 10, type: 'TOTAL', unstable: false]]
+                }
+            }
+        }
+
+        stage('Bandit') {
+            steps {
+                echo WORKSPACE
+                bat 'whoami & hostname'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    unstash name:'code'
+                    echo 'Performing Security tests'
+                    bat 'bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}:{severity}:{test_id}:{msg}"'
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates : [[threshold: 2, type: 'TOTAL', unstable: true], [threshold: 4, type: 'TOTAL', unstable: false]]
+                }
+            }
+        }
+
+        stage('Coverage') {
+            steps {
+                echo WORKSPACE
+                bat 'whoami & hostname'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    unstash name:'code'
+                    echo 'Performing Cobertura report'
+                    unstash name:'coverage-result'
+                    cobertura onlyStable: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '90, 80, 80', lineCoverageTargets: '95, 85, 95'
+                }
+            }
+        }         
+
+        stage('Jmeter') {
+            steps {
+                echo WORKSPACE
+                bat 'whoami & hostname'
+                unstash name:'code'
+                echo 'Performing Performance test'
+                bat 'jmeter -n -t test\\jmeter\\test-plan-CP1.2.jmx -f -l flask.jtl'
+                perfReport sourceDataFiles: 'flask.jtl'
             }
         }
     }            
